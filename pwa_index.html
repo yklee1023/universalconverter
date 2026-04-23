@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Converter">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<title>Universal Converter</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#ffffff;--bg2:#f5f5f3;--bg3:#ededea;
+    --text:#1a1a1a;--text2:#666;--text3:#999;
+    --border:#e0e0d8;--accent:#1a1a1a;--accent-text:#fff;
+    --radius:10px
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#1c1c1e;--bg2:#2c2c2e;--bg3:#3a3a3c;
+      --text:#f2f2f7;--text2:#aeaeb2;--text3:#6c6c70;
+      --border:#3a3a3c;--accent:#f2f2f7;--accent-text:#1c1c1e
+    }
+  }
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:2rem}
+  header{padding:1rem 1rem 0.5rem;position:sticky;top:0;background:var(--bg);z-index:10;border-bottom:1px solid var(--border)}
+  header h1{font-size:20px;font-weight:600;margin-bottom:0.75rem}
+  .tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:0.75rem;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid var(--border);font-size:13px;cursor:pointer;background:var(--bg);color:var(--text2);transition:all .15s;-webkit-tap-highlight-color:transparent}
+  .tab.active{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+  main{padding:1rem}
+  .panel{display:none}.panel.active{display:block}
+  .input-row{display:flex;flex-direction:column;gap:10px;margin-bottom:1rem}
+  input[type=number],select{
+    width:100%;padding:12px 14px;border:1px solid var(--border);
+    border-radius:var(--radius);font-size:16px;background:var(--bg2);
+    color:var(--text);outline:none;-webkit-appearance:none;appearance:none
+  }
+  input[type=number]:focus,select:focus{border-color:var(--text3)}
+  select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+  .section-label{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+  .results{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .card{background:var(--bg2);border-radius:var(--radius);padding:12px 14px;border:1px solid var(--border)}
+  .card-label{font-size:11px;color:var(--text3);margin-bottom:4px}
+  .card-value{font-size:18px;font-weight:600;word-break:break-all;color:var(--text)}
+  .indian-breakdown{background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden}
+  .indian-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);font-size:15px}
+  .indian-row:last-child{border-bottom:none;font-weight:600}
+  .indian-row span:first-child{color:var(--text2)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Universal Converter</h1>
+  <div class="tabs" id="tabs"></div>
+</header>
+<main id="panels"></main>
+
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js');
+}
+
+const cats=[
+  {id:"weight",label:"Weight",units:[
+    {id:"kg",label:"Kilogram (kg)"},{id:"g",label:"Gram (g)"},{id:"mg",label:"Milligram (mg)"},
+    {id:"lb",label:"Pound (lb)"},{id:"oz",label:"Ounce (oz)"},{id:"ton",label:"Metric ton"},{id:"stone",label:"Stone"}
+  ],toBase:{kg:1,g:1e-3,mg:1e-6,lb:0.453592,oz:0.0283495,ton:1000,stone:6.35029}},
+  {id:"length",label:"Length",units:[
+    {id:"m",label:"Meter (m)"},{id:"cm",label:"Centimeter (cm)"},{id:"mm",label:"Millimeter (mm)"},
+    {id:"km",label:"Kilometer (km)"},{id:"in",label:"Inch (in)"},{id:"ft",label:"Foot (ft)"},
+    {id:"yd",label:"Yard (yd)"},{id:"mi",label:"Mile (mi)"}
+  ],toBase:{m:1,cm:0.01,mm:0.001,km:1000,in:0.0254,ft:0.3048,yd:0.9144,mi:1609.34}},
+  {id:"volume",label:"Volume",units:[
+    {id:"l",label:"Liter (L)"},{id:"ml",label:"Milliliter (mL)"},{id:"gal",label:"US Gallon"},
+    {id:"qt",label:"US Quart"},{id:"pt",label:"US Pint"},{id:"cup",label:"US Cup"},
+    {id:"floz",label:"Fluid Oz"},{id:"tbsp",label:"Tablespoon"},{id:"tsp",label:"Teaspoon"}
+  ],toBase:{l:1,ml:0.001,gal:3.78541,qt:0.946353,pt:0.473176,cup:0.236588,floz:0.0295735,tbsp:0.0147868,tsp:0.00492892}},
+  {id:"temp",label:"Temp",special:"temp",units:[
+    {id:"c",label:"Celsius (°C)"},{id:"f",label:"Fahrenheit (°F)"},{id:"k",label:"Kelvin (K)"}
+  ]},
+  {id:"area",label:"Area",units:[
+    {id:"sqm",label:"Sq Meter (m²)"},{id:"sqkm",label:"Sq Kilometer (km²)"},{id:"sqft",label:"Sq Foot (ft²)"},
+    {id:"sqyd",label:"Sq Yard (yd²)"},{id:"sqmi",label:"Sq Mile (mi²)"},{id:"acre",label:"Acre"},{id:"ha",label:"Hectare"}
+  ],toBase:{sqm:1,sqkm:1e6,sqft:0.092903,sqyd:0.836127,sqmi:2.59e6,acre:4046.86,ha:10000}},
+  {id:"speed",label:"Speed",units:[
+    {id:"kmh",label:"km/h"},{id:"mph",label:"mph"},{id:"ms",label:"m/s"},{id:"knot",label:"Knot"}
+  ],toBase:{kmh:1,mph:1.60934,ms:3.6,knot:1.852}},
+  {id:"data",label:"Data",units:[
+    {id:"b",label:"Byte (B)"},{id:"kb",label:"Kilobyte (KB)"},{id:"mb",label:"Megabyte (MB)"},
+    {id:"gb",label:"Gigabyte (GB)"},{id:"tb",label:"Terabyte (TB)"}
+  ],toBase:{b:1,kb:1024,mb:1048576,gb:1073741824,tb:1099511627776}},
+  {id:"indian",label:"Indian №",special:"indian"}
+];
+
+const fmt=n=>{
+  if(isNaN(n)||!isFinite(n))return "—";
+  if(Math.abs(n)<1e-6)return n.toExponential(4);
+  if(Math.abs(n)<0.01)return parseFloat(n.toPrecision(5)).toString();
+  const d=Math.abs(n)>=10000?2:Math.abs(n)>=100?4:6;
+  return parseFloat(n.toFixed(d)).toLocaleString('en-IN',{maximumFractionDigits:d});
+};
+const tempConv=(v,f)=>{const c={c:v=>v,f:v=>(v-32)*5/9,k:v=>v-273.15}[f](v);return{c,f:c*9/5+32,k:c+273.15}};
+const indianParts=n=>{
+  const tiers=[[1e11,"Kharab"],[1e9,"Arab"],[1e7,"Crore"],[1e5,"Lakh"],[1e3,"Thousand"]];
+  const out=[];
+  for(const[div,label] of tiers)if(Math.abs(n)>=div)out.push({label,val:(n/div).toFixed(4)});
+  out.push({label:"Units",val:n.toLocaleString('en-IN')});
+  return out;
+};
+
+const tabsEl=document.getElementById("tabs");
+const panelsEl=document.getElementById("panels");
+
+cats.forEach((cat,i)=>{
+  const tab=document.createElement("button");
+  tab.className="tab"+(i===0?" active":"");
+  tab.textContent=cat.label;
+  tab.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("panel-"+cat.id).classList.add("active");
+  };
+  tabsEl.appendChild(tab);
+
+  const panel=document.createElement("div");
+  panel.className="panel"+(i===0?" active":"");
+  panel.id="panel-"+cat.id;
+
+  if(cat.special==="indian"){
+    panel.innerHTML=`<div class="input-row"><input type="number" inputmode="decimal" id="indian-in" placeholder="Enter number (e.g. 1500000)"></div><div id="indian-out"></div>`;
+    panelsEl.appendChild(panel);
+    setTimeout(()=>{
+      const inp=document.getElementById("indian-in"),out=document.getElementById("indian-out");
+      inp.addEventListener("input",()=>{
+        const v=parseFloat(inp.value);
+        if(isNaN(v)){out.innerHTML="";return;}
+        out.innerHTML=`<div class="indian-breakdown">`+indianParts(v).map(r=>`<div class="indian-row"><span>${r.label}</span><span>${r.val}</span></div>`).join("")+`</div>`;
+      });
+    },50);return;
+  }
+
+  const opts=cat.units.map(u=>`<option value="${u.id}">${u.label}</option>`).join("");
+  panel.innerHTML=`<div class="input-row"><input type="number" inputmode="decimal" id="${cat.id}-val" placeholder="Enter value" value="1"><select id="${cat.id}-from">${opts}</select></div><p class="section-label">Results</p><div class="results" id="${cat.id}-results"></div>`;
+  panelsEl.appendChild(panel);
+
+  setTimeout(()=>{
+    const vEl=document.getElementById(cat.id+"-val"),fEl=document.getElementById(cat.id+"-from"),rEl=document.getElementById(cat.id+"-results");
+    const upd=()=>{
+      const v=parseFloat(vEl.value)||0,f=fEl.value;
+      let res;
+      if(cat.special==="temp"){res=tempConv(v,f);}
+      else{const base=v*cat.toBase[f];res={};cat.units.forEach(u=>res[u.id]=base/cat.toBase[u.id]);}
+      rEl.innerHTML=cat.units.filter(u=>u.id!==f).map(u=>`<div class="card"><div class="card-label">${u.label}</div><div class="card-value">${fmt(res[u.id])}</div></div>`).join("");
+    };
+    vEl.addEventListener("input",upd);fEl.addEventListener("change",upd);upd();
+  },50);
+});
+</script>
+</body>
+</html>
