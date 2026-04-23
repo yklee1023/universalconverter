@@ -2,7 +2,7 @@
   "name": "Universal Converter",
   "short_name": "Converter",
   "description": "Unit converter with metric, US standard, and Indian number system",
-  "start_url": "/universalconverter/",
+  "start_url": "/converter/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
