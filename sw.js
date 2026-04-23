@@ -1,5 +1,5 @@
 const CACHE = 'converter-v1';
-const FILES = ['/converter/', '/converter/index.html', '/converter/manifest.json', '/converter/icon-192.png', '/converter/icon-512.png'];
+const FILES = ['/universalconverter/', '/universalconverter/index.html', '/universalconverter/manifest.json', '/universalconverter/icon-192.png', '/universalconverter/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
