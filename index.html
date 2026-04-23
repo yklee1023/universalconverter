@@ -102,6 +102,7 @@ const cats=[
     {id:"kgfcm2",label:"kgf/cm²"},{id:"bar",label:"Bar"},
     {id:"mbar",label:"Millibar"}
   ],toBase:{mpa:1,nmm2:1,gpa:1000,kpa:0.001,pa:1e-6,ksi:6.89476,psi:0.00689476,kgfmm2:9.80665,kgfcm2:0.0980665,bar:0.1,mbar:0.0001}},
+  {id:"gauge",label:"SS Gauge",special:"gauge"},
   {id:"indian",label:"Indian №",special:"indian"}
 ];
 
@@ -139,6 +140,63 @@ cats.forEach((cat,i)=>{
   const panel=document.createElement("div");
   panel.className="panel"+(i===0?" active":"");
   panel.id="panel-"+cat.id;
+
+  if(cat.special==="gauge"){
+    const ssG=[
+      {g:8,i:0.17187,m:4.365},{g:9,i:0.15625,m:3.968},{g:10,i:0.14062,m:3.571},
+      {g:11,i:0.12500,m:3.175},{g:12,i:0.10937,m:2.778},{g:14,i:0.07812,m:1.984},
+      {g:16,i:0.06250,m:1.587},{g:18,i:0.05000,m:1.270},{g:20,i:0.03750,m:0.9525},
+      {g:22,i:0.03125,m:0.7937},{g:24,i:0.02500,m:0.6350},{g:26,i:0.01875,m:0.476},
+      {g:28,i:0.01562,m:0.396},{g:30,i:0.01250,m:0.3175}
+    ];
+    panel.innerHTML=`
+      <p class="section-label">Stainless steel sheet — US standard gauge (ASTM)</p>
+      <div style="display:flex;gap:6px;margin-bottom:12px" id="gmodes">
+        <button class="tab active" data-mode="g">Gauge →</button>
+        <button class="tab" data-mode="m">mm →</button>
+        <button class="tab" data-mode="i">Inch →</button>
+      </div>
+      <div class="input-row"><input type="number" inputmode="decimal" id="g-inp" placeholder="Enter gauge (e.g. 16)"></div>
+      <div id="g-res"></div>
+      <p class="section-label" style="margin-top:1.5rem">Full reference table</p>
+      <div id="g-tbl"></div>`;
+    panelsEl.appendChild(panel);
+    setTimeout(()=>{
+      let mode='g';
+      const inp=document.getElementById('g-inp'),res=document.getElementById('g-res'),tbl=document.getElementById('g-tbl');
+      tbl.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        ${['Gauge','mm','Inch'].map(h=>`<div style="padding:8px 10px;background:var(--bg3);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">${h}</div>`).join('')}
+        ${ssG.map((r,idx)=>{const bg=idx%2===0?'var(--bg2)':'var(--bg)';return[''+r.g,''+r.m,''+r.i].map(v=>`<div style="padding:8px 10px;background:${bg};font-size:14px;border-top:1px solid var(--border)">${v}</div>`).join('');}).join('')}
+      </div>`;
+      const showRes=(row,exact)=>{
+        res.innerHTML=`<div style="margin:6px 0 10px;font-size:12px;color:var(--text3)">${exact?'Exact match':'Closest standard gauge'}</div>
+          <div class="results">
+            <div class="card"><div class="card-label">Gauge</div><div class="card-value">${row.g}</div></div>
+            <div class="card"><div class="card-label">Millimeter (mm)</div><div class="card-value">${row.m}</div></div>
+            <div class="card"><div class="card-label">Inch</div><div class="card-value">${row.i}</div></div>
+          </div>`;
+      };
+      document.getElementById('gmodes').querySelectorAll('button').forEach(btn=>{
+        btn.onclick=()=>{
+          document.getElementById('gmodes').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');mode=btn.dataset.mode;
+          inp.placeholder=mode==='g'?'Enter gauge (e.g. 16)':mode==='m'?'Enter mm (e.g. 1.587)':'Enter inch (e.g. 0.0625)';
+          inp.value='';res.innerHTML='';
+        };
+      });
+      inp.addEventListener('input',()=>{
+        const v=parseFloat(inp.value);
+        if(isNaN(v)){res.innerHTML='';return;}
+        if(mode==='g'){
+          const row=ssG.find(r=>r.g===v);
+          row?showRes(row,true):res.innerHTML=`<p style="font-size:13px;color:var(--text3);margin-top:8px">Gauge ${v} not in standard SS table. Valid: 8–12, 14, 16, 18, 20, 22, 24, 26, 28, 30.</p>`;
+        } else {
+          const row=ssG.reduce((a,b)=>Math.abs(b[mode]-v)<Math.abs(a[mode]-v)?b:a);
+          showRes(row,Math.abs(row[mode]-v)<0.0001);
+        }
+      });
+    },50);return;
+  }
 
   if(cat.special==="indian"){
     panel.innerHTML=`<div class="input-row"><input type="number" inputmode="decimal" id="indian-in" placeholder="Enter number (e.g. 1500000)"></div><div id="indian-out"></div>`;
