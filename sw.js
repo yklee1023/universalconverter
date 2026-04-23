@@ -1,4 +1,4 @@
-const CACHE = 'converter-v1';
+const CACHE = 'converter-v2';
 const FILES = ['/converter/', '/converter/index.html', '/converter/manifest.json', '/converter/icon-192.png', '/converter/icon-512.png'];
 
 self.addEventListener('install', e => {
